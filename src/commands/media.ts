@@ -4,6 +4,7 @@ import { parse, UsageError } from '../args.ts'
 import type { Context } from '../context.ts'
 import type { Client } from '../client.ts'
 import { dropFolder, type BindingResult, type FileResult } from '../media/drop.ts'
+import { dropRecord, saveDrop } from '../media/history.ts'
 import { isPortableName, type Binding } from '../media/folder.ts'
 import { formatJson, formatTable } from '../output.ts'
 import { listAll } from '../resources.ts'
@@ -74,7 +75,12 @@ async function drop(argv: string[], ctx: Context): Promise<number> {
     else if (!result.ok) ctx.io.stdout(`FAIL  ${result.relPath}: ${result.error}\n`)
     else ctx.io.stdout(`ok    ${result.relPath}${result.duplicate ? ' (already in the store)' : ''}\n${result.results.map((b) => `        ${label(b)} ${b.status}\n`).join('')}`)
   }
+  const startedAt = new Date().toISOString()
   const report = await dropFolder(client, root, { dryRun, concurrency, onFile: dryRun ? undefined : progress })
+  if (!dryRun) {
+    const problem = await saveDrop(client, dropRecord(report, { startedAt, finishedAt: new Date().toISOString() }))
+    if (problem) ctx.io.stderr(`warning: the drop was not saved in the store's History: ${problem}\n`)
+  }
 
   if (dryRun && !values.json) {
     for (const file of report.plan.files) {

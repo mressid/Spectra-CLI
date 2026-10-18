@@ -204,6 +204,28 @@ describe('media drop', () => {
     expect(result.stderr).toContain('ignored 1 file(s)')
   })
 
+  it('keeps the drop in the store history: files, placements, and the CLI as the source', async () => {
+    const dir = await folder({ 'product/gold-ring/thumbnail/cover.png': 'a', '[new-ring, gold-ring]/gallery/02_box.png': 'b', 'product/a/thumbnail/dup.png': 'c', 'variant/SKU/thumbnail/v.png': 'd' })
+    let saved: Record<string, unknown> | undefined
+    const result = await run(['media', 'drop', dir], { ...store(), 'POST /api/v1/admin/import-runs': (req) => ((saved = req.body as Record<string, unknown>), { status: 201, data: { id: 'run-1' } }) })
+    expect(saved).toMatchObject({ source: 'CLI', label: 'Media drop: 3 files, 1 skipped' })
+    const items = saved?.items as { kind: string; key: string; status: string }[]
+    expect(items.filter((i) => i.kind === 'UPLOAD').map((i) => [i.key, i.status])).toEqual([
+      ['[new-ring, gold-ring]/gallery/02_box.png', 'UPLOADED'],
+      ['product/a/thumbnail/dup.png', 'DUPLICATE'],
+      ['product/gold-ring/thumbnail/cover.png', 'UPLOADED'],
+    ])
+    expect(items.filter((i) => i.kind === 'BINDING').map((i) => [i.key, i.status])).toContainEqual(['product/new-ring/gallery/2', 'WAITING'])
+    expect(result.stderr).not.toContain('History')
+  })
+
+  it('tells, without failing, when the store cannot keep the history', async () => {
+    const dir = await folder({ 'product/a/thumbnail/c.png': 'x' })
+    const result = await run(['media', 'drop', dir], store())
+    expect(result.code).toBe(0)
+    expect(result.stderr).toContain("warning: the drop was not saved in the store's History")
+  })
+
   it('a dry run sends nothing and needs no login', async () => {
     const dir = await folder({ 'product/a/thumbnail/c.png': 'x', 'variant/SKU/thumbnail/v.png': 'y' })
     const result = await run(['media', 'drop', dir, '--dry-run'], {}, { session: false })
