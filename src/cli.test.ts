@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { main } from './cli.ts'
+import { main } from './main.ts'
 import { fakeStore, memoryStore, SESSION, testIo, type Handler } from './testkit.ts'
 
 const UUID = '60000000-0000-4000-8000-000000000004'

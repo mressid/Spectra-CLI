@@ -10,9 +10,9 @@ argv ─► cli.ts main() ─► command (auth | resource | media | api) ─► 
                                 └──── Io (stdout, stderr, stdin) ◄───┴── SessionStore (file)
 ```
 
-`main(argv, deps)` takes everything it touches (terminal, environment, cwd, session store, `fetch`) as arguments and returns the
-exit code, so every test runs a real command line against `testkit.ts`'s fake store. Nothing reads `process.*` outside `cli.ts`
-and `io.ts`.
+`main(argv, deps)` (src/main.ts) takes everything it touches (terminal, environment, cwd, session store, `fetch`) as arguments and returns the
+exit code, so every test runs a real command line against `testkit.ts`'s fake store. Nothing reads `process.*` outside `cli.ts` (the entry point)
+and `io.ts`. The entry point has no top-level `await` and no `import.meta`, so the same code can be bundled into one CommonJS file.
 
 ## Decisions
 
@@ -37,6 +37,13 @@ The folder rules are the importer's (store-importer `src/upload/mediaFolderParse
 `folder.test.ts` holds the importer's four example folders as expectations, so the two stay in step. Two intended differences:
 the roles are limited to the two the store knows (`logo`, `icon`, `hero` mean THUMBNAIL; `banner`, `swatch` mean GALLERY), and
 what the store refuses is reported before upload.
+
+## The executable (`scripts/build-exe.mjs`)
+esbuild bundles `src/cli.ts` into one CommonJS file (the version is baked in with `define`, since no package.json sits beside the
+executable), then `node --build-sea` injects it into a copy of the running Node binary (Node single executable applications).
+In the executable `process.argv` is `[executable, executable, ...args]`, the same shape as `node script`, so `slice(2)` serves both.
+It is built for the system it runs on (the Node binary is that system's), and the build fails if the result does not report the right
+version when run with an empty PATH. esbuild is a dev dependency used only here; the program itself has no dependencies.
 
 ## Out of scope
 Importing CSV/JSON/YAML catalogues (that is the importer), interactive prompts beyond login and delete, shell completion,

@@ -9,6 +9,7 @@ No runtime dependencies. Node 22.18 or newer.
 ```bash
 npm install
 npm run build && npm link          # puts `spectra` on your PATH (or: node src/cli.ts <command>)
+# or just copy the single-file executable: dist/bin/spectra-<os>-<cpu>, no Node needed on the machine that runs it
 
 spectra login --url http://localhost:8080
 spectra products list --filter isActive=true --sort name
@@ -80,18 +81,35 @@ Other media commands: `media upload <file>...`, `media bind <id> --to product:ri
 `media cleanup [--apply]`, and `media skeleton <folder>`, which creates the empty folders for what is **in the store**
 (then fill them and `media drop` them).
 
+## Executable
+`npm run build` also produces **one file that runs without Node**: `dist/bin/spectra-linux-x64` (`spectra-darwin-arm64`,
+`spectra-win32-x64.exe`... the name says the system it is for). Copy it anywhere on a PATH and use it as `spectra`:
+
+```bash
+install -m 755 dist/bin/spectra-linux-x64 /usr/local/bin/spectra
+spectra --version
+```
+
+It is a Node single executable application: the program is bundled into one file (esbuild, a build-time tool only, so there are
+still no runtime dependencies) and injected into a copy of the Node binary that builds it, which is why it is about 60 MB. It starts
+in under 0.1 s and the build runs it once to check the version it reports. **It is for the system it was built on**: run the build
+on each OS and CPU you want to ship to (`npm run build:exe` alone skips the plain JavaScript build). On macOS, Gatekeeper may ask
+you to allow an executable that is not signed.
+
 ## Develop
 ```bash
 npm test          # client, session, folder rules, every command against a fake store
 npm run typecheck && npm run lint
-npm run build     # dist/, what the `spectra` command runs
+npm run build     # dist/cli.js (what `npm link` uses) and dist/bin/spectra-<os>-<cpu> (the executable)
+npm run build:js  # only dist/
 npm run dev -- products list      # runs src/cli.ts directly
 ```
 See [AGENTS.md](AGENTS.md) for the rules and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design.
 
 ## Layout
 ```
-src/cli.ts            entry point and command router (main() is what the tests call)
+src/cli.ts            the program: real terminal, environment and login file, then main()
+src/main.ts           command router; main(argv, deps) returns the exit code and is what the tests call
 src/client.ts         API client: envelope, errors, token refresh, upload
 src/session.ts        the saved login
 src/resources.ts      the REST resources, slug/SKU lookup, paging
@@ -99,6 +117,7 @@ src/commands/         auth, resource (list/get/create/update/delete), media, api
 src/media/folder.ts   folder path -> bindings (the rules above)
 src/media/drop.ts     scan, check, upload and bind a folder
 src/testkit.ts        fake store, in-memory session, recording terminal (tests only)
+scripts/build-exe.mjs bundles the program and builds the single executable
 ```
 
 ## As a submodule

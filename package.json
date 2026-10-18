@@ -12,13 +12,16 @@
   },
   "scripts": {
     "dev": "node src/cli.ts",
-    "build": "tsc -p tsconfig.build.json && node scripts/mark-executable.mjs",
+    "build": "npm run build:js && npm run build:exe",
+    "build:js": "tsc -p tsconfig.build.json && node scripts/mark-executable.mjs",
+    "build:exe": "node scripts/build-exe.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint",
     "test": "vitest run"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
+    "esbuild": "^0.28.2",
     "oxlint": "^1.81.0",
     "typescript": "~6.0.2",
     "vitest": "^5.0.5"
